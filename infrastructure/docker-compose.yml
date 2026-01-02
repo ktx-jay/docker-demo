@@ -15,9 +15,10 @@ services:
   # --------------------------------------------
   app:
     build:
-      context: .
-      # Use the dedicated production Dockerfile
-      dockerfile: Dockerfile.prod
+      # Context is the project root directory (one level up from this compose file)
+      context: ..
+      # Use the Dockerfile
+      dockerfile: infrastructure/Dockerfile
       # Build arguments (if needed)
       args:
         - NODE_ENV=production
