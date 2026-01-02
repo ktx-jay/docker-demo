@@ -1,0 +1,52 @@
+# ============================================
+# DOCKERFILE FOR DEVELOPMENT
+# ============================================
+# This Dockerfile is optimized for development with hot-reloading
+# and debugging capabilities with TypeScript support
+
+# Use Node.js LTS version on Alpine Linux
+# Alpine is a minimal Linux distribution (~5MB) that keeps images small
+FROM node:20-alpine
+
+# Set the working directory inside the container
+# All subsequent commands will run from this directory
+WORKDIR /app
+
+# Copy package files first for better Docker layer caching
+# If package.json doesn't change, Docker won't reinstall dependencies
+COPY package*.json ./
+
+# Copy TypeScript configuration
+COPY tsconfig.json ./
+
+# Install ALL dependencies (including devDependencies like nodemon, TypeScript)
+# npm ci is preferred over npm install for clean, reproducible builds
+RUN npm ci
+
+# Copy application source code
+# In development, this will be overridden by volume mount for hot-reloading
+COPY . .
+
+# Expose port 3000 for the application
+# NOTE: This is documentation only - actual port mapping happens in docker-compose
+EXPOSE 3000
+
+# Set Node environment to development
+ENV NODE_ENV=development
+
+# Start the application with nodemon and ts-node for hot-reloading
+# ts-node runs TypeScript directly without compilation
+# Any file changes will automatically restart the server
+CMD ["npm", "run", "dev"]
+
+# ============================================
+# USAGE
+# ============================================
+# Build development image:
+#   docker build -f Dockerfile.dev -t myapp:dev .
+#
+# Run development container:
+#   docker run -p 3000:3000 -v $(pwd):/app -v /app/node_modules myapp:dev
+#
+# Better: Use docker-compose.yml which handles this automatically
+# ============================================

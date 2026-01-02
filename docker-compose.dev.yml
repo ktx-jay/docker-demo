@@ -1,0 +1,223 @@
+# ============================================
+# DOCKER COMPOSE FOR DEVELOPMENT
+# ============================================
+# Docker Compose is a tool for defining and running multi-container Docker applications
+# This file defines all services, networks, and volumes needed for our application
+
+# Version is now optional in newer Docker Compose versions
+# We're using the latest compose file format (no version specified)
+
+# ============================================
+# SERVICES DEFINITION
+# ============================================
+# Services are the containers that make up your application
+services:
+  # --------------------------------------------
+  # Node.js Application Service
+  # --------------------------------------------
+  app:
+    # Build configuration for the application
+    build:
+      # Context is the directory containing the Dockerfile
+      context: .
+      # Use the dedicated development Dockerfile
+      dockerfile: Dockerfile.dev
+
+    # Container name for easy identification
+    container_name: nodejs-app-dev
+
+    # Restart policy: restart container if it crashes
+    # Options: no, always, on-failure, unless-stopped
+    restart: unless-stopped
+
+    # Environment variables
+    environment:
+      # Set Node environment to development
+      - NODE_ENV=development
+      # MongoDB connection string using service name as hostname
+      # Docker Compose creates a network where services can reach each other by name
+      - MONGO_URI=mongodb://mongodb:27017/dockerapp
+      - PORT=3000
+
+    # Port mapping: host_port:container_port
+    # This maps port 3000 on your machine to port 3000 in the container
+    ports:
+      - "3000:3000"
+
+    # Volumes for development
+    # Volumes allow file sharing between host and container
+    volumes:
+      # Bind mount: sync source code for hot-reloading
+      # Changes on host immediately reflect in container
+      - .:/app
+      # Anonymous volume: prevent node_modules from being overwritten
+      # This ensures container's node_modules aren't replaced by host's
+      - /app/node_modules
+      # Anonymous volume: prevent dist folder from being overwritten
+      - /app/dist
+
+    # Dependencies: ensure MongoDB starts before the app
+    depends_on:
+      mongodb:
+        # Wait for MongoDB to be healthy before starting app
+        condition: service_healthy
+
+    # Networks this service connects to
+    networks:
+      - app-network
+
+    # Command to run (overrides Dockerfile CMD)
+    # Using nodemon for automatic restart on file changes
+    command: npm run dev
+
+  # --------------------------------------------
+  # MongoDB Database Service
+  # --------------------------------------------
+  mongodb:
+    # Use official MongoDB image from Docker Hub
+    # Tag '7' means MongoDB version 7.x
+    image: mongo:7
+
+    # Container name
+    container_name: mongodb-dev
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Environment variables for MongoDB
+    # NOTE: In production, ALWAYS use authentication!
+    environment:
+      # Root username (optional for development)
+      # MONGO_INITDB_ROOT_USERNAME: admin
+      # Root password (optional for development)
+      # MONGO_INITDB_ROOT_PASSWORD: password123
+      # Initial database name
+      MONGO_INITDB_DATABASE: dockerapp
+
+    # Port mapping
+    # Maps MongoDB's default port 27017
+    ports:
+      - "27017:27017"
+
+    # Volumes for data persistence
+    # Without volumes, data is lost when container is removed
+    volumes:
+      # Named volume: persist MongoDB data
+      # This ensures your data survives container restarts/removals
+      - mongodb-data:/data/db
+      # MongoDB config directory
+      - mongodb-config:/data/configdb
+
+    # Health check to verify MongoDB is ready
+    # Docker will mark service as 'healthy' once this passes
+    healthcheck:
+      # Command to test if MongoDB is responding
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      # Time between health checks
+      interval: 10s
+      # Time to wait for health check to complete
+      timeout: 5s
+      # Number of retries before marking as unhealthy
+      retries: 5
+      # Time to wait before first health check
+      start_period: 40s
+
+    # Networks
+    networks:
+      - app-network
+
+  # --------------------------------------------
+  # Mongo Express (Optional Web UI for MongoDB)
+  # --------------------------------------------
+  # This provides a web interface to view/manage MongoDB
+  # Great for development and debugging
+  mongo-express:
+    # Official Mongo Express image
+    image: mongo-express:latest
+
+    container_name: mongo-express-dev
+
+    restart: unless-stopped
+
+    # Environment configuration
+    environment:
+      # MongoDB connection details
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      # If you enabled MongoDB authentication, add:
+      # ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      # ME_CONFIG_MONGODB_ADMINPASSWORD: password123
+      # Basic auth for Mongo Express web interface
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin123
+
+    # Port mapping for web interface
+    ports:
+      - "8081:8081"
+
+    # Wait for MongoDB to be healthy
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+    networks:
+      - app-network
+
+# ============================================
+# NETWORKS DEFINITION
+# ============================================
+# Networks allow containers to communicate with each other
+# Docker Compose creates a default network, but we define one explicitly for clarity
+networks:
+  app-network:
+    # Bridge is the default network driver
+    # It creates a private internal network on the host
+    driver: bridge
+    # Custom network name
+    name: nodejs-mongodb-network
+
+# ============================================
+# VOLUMES DEFINITION
+# ============================================
+# Named volumes for data persistence
+# These are managed by Docker and survive container removal
+volumes:
+  # Volume for MongoDB data files
+  mongodb-data:
+    driver: local
+    name: mongodb-data-dev
+
+  # Volume for MongoDB configuration
+  mongodb-config:
+    driver: local
+    name: mongodb-config-dev
+# ============================================
+# USAGE COMMANDS
+# ============================================
+# Start all services:
+#   docker-compose -f docker-compose.dev.yml up
+#
+# Start in detached mode (background):
+#   docker-compose -f docker-compose.dev.yml up -d
+#
+# Stop all services:
+#   docker-compose -f docker-compose.dev.yml down
+#
+# Stop and remove volumes (deletes data):
+#   docker-compose -f docker-compose.dev.yml down -v
+#
+# View logs:
+#   docker-compose -f docker-compose.dev.yml logs
+#   docker-compose -f docker-compose.dev.yml logs app
+#   docker-compose -f docker-compose.dev.yml logs -f app (follow mode)
+#
+# Rebuild images:
+#   docker-compose -f docker-compose.dev.yml up --build
+#
+# View running containers:
+#   docker-compose -f docker-compose.dev.yml ps
+#
+# Execute command in running container:
+#   docker-compose -f docker-compose.dev.yml exec app sh
+#   docker-compose -f docker-compose.dev.yml exec mongodb mongosh
+# ============================================
