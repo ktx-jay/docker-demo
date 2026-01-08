@@ -9,7 +9,7 @@
 # STAGE 1: Build TypeScript
 # ============================================
 # Compile TypeScript to JavaScript
-FROM node:20-alpine AS builder
+FROM node:20-alpine@sha256:658d0f63e501824d6c23e06d4bb95c71e7d704537c9d9272f488ac03a370d448 AS builder
 
 WORKDIR /app
 
@@ -23,6 +23,8 @@ COPY tsconfig.json ./
 RUN npm ci
 
 # Copy source code
+# Note: Paths are relative to build context (project root), not Dockerfile location
+# Build context is set to '..' in docker-compose.yml, so './src' refers to <root>/src
 COPY src ./src
 
 # Compile TypeScript to JavaScript
@@ -33,15 +35,12 @@ RUN npm run build
 # STAGE 2: Production Dependencies
 # ============================================
 # Install production dependencies only
-FROM node:20-alpine AS dependencies
+FROM node:20-alpine@sha256:658d0f63e501824d6c23e06d4bb95c71e7d704537c9d9272f488ac03a370d448 AS dependencies
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-
-# Set NODE_ENV to production to skip devDependencies
-ENV NODE_ENV=production
 
 # Install only production dependencies
 # --production flag skips devDependencies (TypeScript, ts-node, etc.)
@@ -52,7 +51,7 @@ RUN npm ci --production --frozen-lockfile
 # STAGE 3: Production Image
 # ============================================
 # Create the final, minimal production image with only compiled code
-FROM node:20-alpine AS production
+FROM node:20-alpine@sha256:658d0f63e501824d6c23e06d4bb95c71e7d704537c9d9272f488ac03a370d448 AS production
 
 # Install dumb-init for proper signal handling
 # dumb-init ensures signals (like SIGTERM) are properly forwarded to Node.js
@@ -83,7 +82,8 @@ COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 # All subsequent commands run as this user
 USER nodejs
 
-# Expose application port
+# Expose application port for documentation and inter-container communication
+# Note: Use ports: in docker-compose.yml to actually publish to host
 EXPOSE 3000
 
 # Set production environment
@@ -99,10 +99,14 @@ CMD ["npm", "start"]
 # USAGE
 # ============================================
 # Build production image:
-#   docker build -f Dockerfile.prod -t myapp:prod .
+#   docker compose build
 #
-# Run production container:
-#   docker run -p 3000:3000 --env-file .env myapp:prod
+# Start container:
+#   docker compose up -d
 #
-# Better: Use docker-compose.prod.yml for production deployment
+# View logs:
+#   docker compose logs -f app
+#
+# Stop container:
+#   docker compose down
 # ============================================

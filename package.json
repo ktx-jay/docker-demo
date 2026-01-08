@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node dist/server.js",
     "build": "tsc",
-    "dev": "nodemon --watch src --exec ts-node src/server.ts"
+    "start:dev": "nodemon --watch src --exec ts-node src/server.ts"
   },
   "keywords": [
     "docker",

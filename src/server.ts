@@ -166,7 +166,8 @@ app.delete("/api/tasks/:id", async (req: Request, res: Response) => {
 // Root endpoint
 app.get("/", (req: Request, res: Response) => {
   res.json({
-    message: "🐳 Welcome to Docker Node.js + MongoDB API (TypeScript)",
+    message:
+      "🐳 Welcome to Docker Node.js + MongoDB API (TypeScript), Changes - 3",
     endpoints: {
       health: "GET /health",
       tasks: {
@@ -179,16 +180,45 @@ app.get("/", (req: Request, res: Response) => {
   });
 });
 
-// Start the server
-app.listen(PORT, "0.0.0.0", () => {
+// Start the server and store the server instance
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`🌍 Access the API at: http://localhost:${PORT}`);
 });
 
-// Graceful shutdown
-process.on("SIGTERM", async () => {
-  console.log("👋 SIGTERM signal received: closing HTTP server");
-  await mongoose.connection.close();
-  console.log("📦 MongoDB connection closed");
-  process.exit(0);
-});
+// Graceful shutdown handler
+const gracefulShutdown = async (signal: string) => {
+  console.log(`\n👋 ${signal} signal received: starting graceful shutdown`);
+
+  // Stop accepting new connections
+  server.close(async (err) => {
+    if (err) {
+      console.error("❌ Error closing server:", err);
+      process.exit(1);
+    }
+
+    console.log("🛑 HTTP server closed (no longer accepting connections)");
+
+    try {
+      // Close database connection
+      await mongoose.connection.close();
+      console.log("📦 MongoDB connection closed");
+
+      console.log("✅ Graceful shutdown completed");
+      process.exit(0);
+    } catch (error) {
+      console.error("❌ Error during shutdown:", error);
+      process.exit(1);
+    }
+  });
+
+  // Force shutdown after timeout if graceful shutdown takes too long
+  setTimeout(() => {
+    console.error("⚠️  Graceful shutdown timed out, forcing exit...");
+    process.exit(1);
+  }, 30000); // 30 seconds timeout
+};
+
+// Listen for termination signals
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT")); // Handle Ctrl+C

@@ -14,22 +14,19 @@ services:
   # Node.js Application Service (Production)
   # --------------------------------------------
   app:
+    image: nodejs-app-prod:latest
     build:
       # Context is the project root directory (one level up from this compose file)
       context: ..
       # Use the Dockerfile
       dockerfile: infrastructure/Dockerfile
-      # Build arguments (if needed)
-      args:
-        - NODE_ENV=production
 
     container_name: nodejs-app-prod
 
     # Restart always in production for high availability
-    restart: always
+    restart: unless-stopped
 
     environment:
-      - NODE_ENV=production
       - MONGO_URI=mongodb://mongodb:27017/dockerapp
       - PORT=3000
 

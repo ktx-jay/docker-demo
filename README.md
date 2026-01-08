@@ -1,700 +1,721 @@
-# 🐳 Docker Learning Project: Node.js + MongoDB
+# Docker Node.js + MongoDB Task API
 
-This is a comprehensive reference project for learning Docker with a real-world Node.js application and MongoDB database. It includes detailed comments throughout all configuration files to help you understand each concept.
+A production-ready RESTful API built with **Node.js**, **Express**, **TypeScript**, and **MongoDB**, fully containerized with **Docker**. This project demonstrates best practices for building, deploying, and managing containerized applications with multi-stage Docker builds, health checks, and automated deployment scripts.
 
 ## 📋 Table of Contents
 
-- [Project Overview](#project-overview)
-- [Prerequisites](#prerequisites)
-- [Project Structure](#project-structure)
-- [Docker Concepts Explained](#docker-concepts-explained)
-- [Getting Started](#getting-started)
-- [Development Commands](#development-commands)
-- [Production Commands](#production-commands)
-- [API Endpoints](#api-endpoints)
-- [Common Docker Commands Reference](#common-docker-commands-reference)
-- [Troubleshooting](#troubleshooting)
-- [Best Practices](#best-practices)
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Architecture](#-architecture)
+- [Project Structure](#-project-structure)
+- [Prerequisites](#-prerequisites)
+- [Getting Started](#-getting-started)
+  - [Local Development](#local-development)
+  - [Production Deployment](#production-deployment)
+- [API Endpoints](#-api-endpoints)
+- [Docker Configuration](#-docker-configuration)
+- [Deployment Scripts](#-deployment-scripts)
+- [Environment Variables](#-environment-variables)
+- [Health Checks](#-health-checks)
+- [Graceful Shutdown](#-graceful-shutdown)
+- [Resource Management](#-resource-management)
+- [Security Features](#-security-features)
+- [Monitoring & Logging](#-monitoring--logging)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+- [License](#-license)
 
----
+## ✨ Features
 
-## 🎯 Project Overview
+- **TypeScript** - Full type safety with strict mode enabled
+- **RESTful API** - CRUD operations for task management
+- **MongoDB Integration** - Mongoose ODM with proper schema validation
+- **Docker Multi-Stage Builds** - Optimized production images (minimal size)
+- **Health Checks** - Application and database health monitoring
+- **Graceful Shutdown** - Proper signal handling for zero-downtime deployments
+- **Resource Limits** - CPU and memory constraints for production stability
+- **Security Best Practices** - Non-root user, read-only filesystem where possible
+- **Automated Scripts** - Initial setup, deployment, monitoring, and management
+- **Production Ready** - Logging, restart policies, and error handling
 
-This project demonstrates:
+## 🛠 Tech Stack
 
-- ✅ Building Docker images with multi-stage builds
-- ✅ Using Docker Compose for multi-container applications
-- ✅ Containerizing a TypeScript Node.js REST API
-- ✅ Compiling TypeScript in Docker and copying only compiled code to production
-- ✅ Connecting to MongoDB in containers
-- ✅ Development vs Production configurations
-- ✅ Volume management for data persistence
-- ✅ Networking between containers
-- ✅ Health checks and monitoring
+| Technology         | Version   | Purpose                       |
+| ------------------ | --------- | ----------------------------- |
+| **Node.js**        | 20 Alpine | JavaScript runtime            |
+| **TypeScript**     | 5.3+      | Type-safe JavaScript          |
+| **Express**        | 4.18+     | Web framework                 |
+| **MongoDB**        | 7         | NoSQL database                |
+| **Mongoose**       | 8.0+      | MongoDB ODM                   |
+| **Docker**         | Latest    | Containerization              |
+| **Docker Compose** | Latest    | Multi-container orchestration |
 
----
+## 🏗 Architecture
 
-## 📦 Prerequisites
-
-Before starting, ensure you have installed:
-
-1. **Docker Desktop** (includes Docker Engine and Docker Compose)
-
-   - Windows/Mac: [Download Docker Desktop](https://www.docker.com/products/docker-desktop)
-   - Linux: Install Docker Engine and Docker Compose separately
-
-2. Verify installation:
-   ```bash
-   docker --version
-   docker-compose --version
-   ```
-
----
+```
+┌──────────────────────────────────────────────────────────┐
+│                      Docker Network                       │
+│                  (nodejs-mongodb-network-prod)            │
+│                                                           │
+│  ┌─────────────────────┐      ┌────────────────────┐    │
+│  │   Node.js App       │      │     MongoDB        │    │
+│  │   (Port 3000)       │─────▶│   (Port 27017)     │    │
+│  │   - Express API     │      │   - Persistent     │    │
+│  │   - Health Checks   │      │     Storage        │    │
+│  │   - Resource Limits │      │   - Authentication │    │
+│  └─────────────────────┘      └────────────────────┘    │
+│                                                           │
+└──────────────────────────────────────────────────────────┘
+           │
+           ▼
+    Host Port 3000 ──▶ Container Port 3000
+```
 
 ## 📁 Project Structure
 
 ```
-dockerc/
-│   └── server.ts             # TypeScript application code
-├── dist/                     # Compiled JavaScript (generated)
-├── package.json              # Node.js dependencies
-├── tsconfig.json             # TypeScript configurationcode
-├── package.json              # Node.js dependencies
-├── Dockerfile.dev            # Development Dockerfile
-├── Dockerfile.prod           # Production Dockerfile
-├── docker-compose.yml        # Development environment setup
-├── docker-compose.prod.yml   # Production environment setup
-├── .dockerignore            # Files to exclude from Docker build
-├── .env.example             # Example environment variables
-└── README.md                # This file
+Docker/
+├── src/
+│   └── server.ts                 # Main application server with API routes
+├── infrastructure/
+│   ├── docker-compose.yml        # Production Docker Compose configuration
+│   ├── Dockerfile                # Multi-stage production Dockerfile
+│   └── scripts/
+│       ├── deploy.sh            # Continuous deployment script
+│       ├── initial-setup.sh     # First-time server setup
+│       ├── restart.sh           # Restart containers
+│       ├── status.sh            # Check container and app status
+│       └── stop.sh              # Stop all containers
+├── package.json                  # Node.js dependencies and scripts
+├── tsconfig.json                 # TypeScript configuration
+└── README.md                     # This file
 ```
 
----
+## 📦 Prerequisites
 
-## 🧠 Docker Concepts Explained
+Before you begin, ensure you have the following installed:
 
-### What is Docker?
+- **Docker** (version 20.10 or higher)
+- **Docker Compose** (version 2.0 or higher)
+- **Git** (for cloning and version control)
+- **Node.js** (version 20 or higher) - only for local development
+- **npm** (version 9 or higher) - only for local development
 
-Docker is a platform that packages applications and their dependencies into **containers** - lightweight, portable units that run consistently across different environments.
+### Verify Installation
 
-### Key Concepts:
-
-#### 1. **Docker Image**
-
-- A read-only template containing application code, runtime, libraries, and dependencies
-- Built from instructions in a `Dockerfile`
-- Think of it as a "snapshot" or "template" of your application
-
-#### 2. **Docker Container**
-
-- A running instance of a Docker image
-- Isolated environment that includes everything needed to run your app
-- Multiple containers can be created from one image
-
-#### 3. **Dockerfile**
-
-- A text file with instructions to build a Docker image
-- Contains commands like `FROM`, `COPY`, `RUN`, `CMD`
-- Each instruction creates a new layer in the image
-
-#### 4. **Docker Compose**
-
-- A tool for defining multi-container applications
-- Uses a YAML file (`docker-compose.yml`) to configure services
-- Simplifies running complex applications with one command
-
-#### 5. **Volumes**
-
-- Persistent storage for containers
-- Data survives even when containers are deleted
-- Used for databases, uploaded files, etc.
-
-#### 6. **Networks**
-
-- Allow containers to communicate with each other
-- Docker Compose automatically creates a network for your services
-- Containers can reach each other using service names as hostnames
-
-#### 7. **Multi-stage Builds**
-
-- Use multiple `FROM` statements in one Dockerfile
-- Build dependencies in one stage, copy only needed files to final stage
-- Results in smaller, more secure production images
-
----
+```bash
+docker --version
+docker compose version
+git --version
+node --version  # Optional for local dev
+npm --version   # Optional for local dev
+```
 
 ## 🚀 Getting Started
 
-### Step 1: Clone and Setup
+### Local Development
+
+1. **Clone the repository**
+
+   ```bash
+   git clone <your-repo-url>
+   cd Docker
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   npm install
+   ```
+
+3. **Create environment file**
+
+   ```bash
+   # Create .env file in the root directory
+   echo "MONGO_URI=mongodb://localhost:27017/dockerapp" > .env
+   echo "PORT=3000" >> .env
+   ```
+
+4. **Run MongoDB locally** (optional if not using Docker)
+
+   ```bash
+   docker run -d -p 27017:27017 --name mongodb mongo:7
+   ```
+
+5. **Start development server**
+
+   ```bash
+   npm run start:dev
+   ```
+
+6. **Access the API**
+   - API: http://localhost:3000
+   - Health Check: http://localhost:3000/health
+
+### Production Deployment
+
+#### Option 1: Using Docker Compose (Recommended)
+
+1. **Navigate to infrastructure directory**
+
+   ```bash
+   cd infrastructure
+   ```
+
+2. **Create environment file for production**
+
+   ```bash
+   cat > .env << EOF
+   MONGO_ROOT_USERNAME=admin
+   MONGO_ROOT_PASSWORD=your_secure_password_here
+   EOF
+   ```
+
+3. **Build and start containers**
+
+   ```bash
+   docker compose up -d
+   ```
+
+4. **Verify deployment**
+   ```bash
+   docker compose ps
+   curl http://localhost:3000/health
+   ```
+
+#### Option 2: Using Automated Scripts
+
+1. **Initial Setup** (first time only)
+
+   ```bash
+   cd infrastructure/scripts
+   chmod +x *.sh
+   ./initial-setup.sh
+   ```
+
+2. **Deploy Updates**
+
+   ```bash
+   ./deploy.sh
+   ```
+
+3. **Check Status**
+
+   ```bash
+   ./status.sh
+   ```
+
+4. **Stop Services**
+
+   ```bash
+   ./stop.sh
+   ```
+
+5. **Restart Services**
+   ```bash
+   ./restart.sh
+   ```
+
+## 🐳 Docker Configuration
+
+### Multi-Stage Build Process
+
+The Dockerfile uses a **3-stage build** for optimal production images:
+
+1. **Builder Stage** - Compiles TypeScript to JavaScript
+2. **Dependencies Stage** - Installs only production dependencies
+3. **Production Stage** - Creates minimal runtime image
+
+**Benefits:**
+
+- **Smaller Image Size**: Only compiled JS and production dependencies
+- **Faster Deployments**: Reduced image transfer time
+- **Enhanced Security**: No development tools in production
+- **Layer Caching**: Efficient rebuilds
+
+### Key Docker Features
+
+- **Alpine Linux Base**: Minimal attack surface
+- **Non-Root User**: Security best practice (user: nodejs, uid: 1001)
+- **dumb-init**: Proper signal handling for graceful shutdowns
+- **Health Checks**: Automatic container health monitoring
+- **Resource Limits**:
+  - CPU: 0.5-1.0 cores
+  - Memory: 256MB-512MB (app), 512MB-1GB (mongodb)
+
+### Docker Commands
 
 ```bash
-# Navigate to project directory
-cd d:\Demo-Projects\Docker
+# Build image
+docker compose build
 
-# Copy the example environment file
-copy .env.example .env
-
-# (Optional) Edit .env file to customize settings
-```
-
-### Step 2: Install Dependencies Locally (Optional)
-
-# Install dependencies
-
-npm install
-
-# Build TypeScript (optional - Docker will do this)
-
-npm run buildional - Docker will install dependencies inside the container.
-
-```bash
-npm install
-```
-
-### Step 3: Choose Your Path
-
-Continue with either [Development Commands](#development-commands) or [Production Commands](#production-commands).
-
----
-
-## 💻 Development Commands
-
-### Using Docker Compose (Recommended for Development)
-
-#### Start the Application
-
-```bash
-# Start all services (app + MongoDB + Mongo Express)
-docker-compose -f docker-compose.dev.yml up
-
-# Or start in detached mode (runs in background)
-docker-compose -f docker-compose.dev.yml up -d
-```
-
-**What this does:**
-
-- Builds the Node.js app image (if not already built)
-- Starts the Node.js container
-- Starts MongoDB container
-- Starts Mongo Express (web UI for MongoDB)
-- Creates a network for containers to communicate
-- Creates volumes for MongoDB data persistence
-- Enables hot-reloading (code changes auto-restart the app)
-
-#### View Logs
-
-```bash
-# View logs from all services
-docker-compose -f docker-compose.dev.yml logs
-
-# View logs from specific service
-docker-compose -f docker-compose.dev.yml logs app
-docker-compose -f docker-compose.dev.yml logs mongodb
-
-# Follow logs in real-time
-docker-compose -f docker-compose.dev.yml logs -f app
-```
-
-#### Stop the Application
-
-```bash
-# Stop all services (keeps containers)
-docker-compose -f docker-compose.dev.yml stop
-
-# Stop and remove containers (but keeps volumes)
-docker-compose -f docker-compose.dev.yml down
-
-# Stop, remove containers AND delete volumes (deletes database data)
-docker-compose -f docker-compose.dev.yml down -v
-```
-
-#### Rebuild After Code Changes
-
-```bash
-# Rebuild and restart services
-docker-compose -f docker-compose.dev.yml up --build
-
-# Force rebuild without cache
-docker-compose -f docker-compose.dev.yml build --no-cache
-```
-
-#### Access Running Containers
-
-```bash
-# Open shell in app container
-docker-compose -f docker-compose.dev.yml exec app sh
-
-# Open MongoDB shell
-docker-compose -f docker-compose.dev.yml exec mongodb mongosh
-
-# View running containers
-docker-compose -f docker-compose.dev.yml ps
-```
-
-### Using Docker Directly (Without Compose)
-
-#### Build the Image
-
-```bash
-# Build development image using Dockerfile.dev
-docker build -f Dockerfile.dev -t nodejs-app:dev .
-```
-
-#### Run MongoDB Separately
-
-```bash
-# Create a network
-docker network create app-network
-
-# Run MongoDB
-docker run -d \
-  --name mongodb \
-  --network app-network \
-  -p 27017:27017 \
-  -v mongodb-data:/data/db \
-  mongo:7
-```
-
-#### Run the Application
-
-```bash
-# Run the app container
-docker run -d \
-  --name nodejs-app \
-  --network app-network \
-  -p 3000:3000 \
-  -e MONGO_URI=mongodb://mongodb:27017/dockerapp \
-  -v ${PWD}:/app \
-  -v /app/node_modules \
-  nodejs-app:dev
-```
-
----
-
-## 🏭 Production Commands
-
-### Using Docker Compose for Production
-
-#### Build Production Images
-
-```bash
-# Build production images
-docker-compose -f docker-compose.prod.yml build
-
-# Build without cache (fresh build)
-docker-compose -f docker-compose.prod.yml build --no-cache
-```
-
-#### Start Production Environment
-
-```bash
-# Start production services in detached mode
-docker-compose -f docker-compose.prod.yml up -d
+# Start containers (detached)
+docker compose up -d
 
 # View logs
-docker-compose -f docker-compose.prod.yml logs -f
-```
+docker compose logs -f app
 
-#### Stop Production Environment
+# Stop containers
+docker compose down
 
-```bash
-# Stop services
-docker-compose -f docker-compose.prod.yml down
+# Remove volumes
+docker compose down -v
 
-# Stop and remove volumes (caution: deletes data!)
-docker-compose -f docker-compose.prod.yml down -v
-```
+# Rebuild without cache
+docker compose build --no-cache
 
-### Using Docker Directly (Production)
-
-#### Build Production Image
-
-```bash
-# Build production image using Dockerfile.prod
-docker build -f Dockerfile.prod -t nodejs-app:prod .
-```
-
-#### Run Production Containers
-
-```bash
-# Create network
-docker network create app-network-prod
-
-# Run MongoDB with authentication
-docker run -d \
-  --name mongodb-prod \
-  --network app-network-prod \
-  -e MONGO_INITDB_ROOT_USERNAME=admin \
-  -e MONGO_INITDB_ROOT_PASSWORD=securepwd123 \
-  -v mongodb-data-prod:/data/db \
-  mongo:7
-
-# Run the application
-docker run -d \
-  --name nodejs-app-prod \
-  --network app-network-prod \
-  -p 3000:3000 \
-  -e NODE_ENV=production \
-  -e MONGO_URI=mongodb://admin:securepwd123@mongodb-prod:27017/dockerapp?authSource=admin \
-  nodejs-app:prod
-```
-
----
-
-## 🔌 API Endpoints
-
-Once the application is running, access it at: `http://localhost:3000`
-
-### Available Endpoints:
-
-| Method | Endpoint         | Description                   |
-| ------ | ---------------- | ----------------------------- |
-| GET    | `/`              | Welcome message with API info |
-| GET    | `/health`        | Health check endpoint         |
-| GET    | `/api/tasks`     | Get all tasks                 |
-| POST   | `/api/tasks`     | Create a new task             |
-| PUT    | `/api/tasks/:id` | Update a task                 |
-| DELETE | `/api/tasks/:id` | Delete a task                 |
-
-### Example API Calls:
-
-```bash
-# Check health
-curl http://localhost:3000/health
-
-# Get all tasks
-curl http://localhost:3000/api/tasks
-
-# Create a new task
-curl -X POST http://localhost:3000/api/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Learn Docker"}'
-
-# Update a task (replace <id> with actual task ID)
-curl -X PUT http://localhost:3000/api/tasks/<id> \
-  -H "Content-Type: application/json" \
-  -d '{"completed": true}'
-
-# Delete a task (replace <id> with actual task ID)
-curl -X DELETE http://localhost:3000/api/tasks/<id>
-```
-
-### Access Mongo Express (Development Only)
-
-- URL: `http://localhost:8081`
-- Username: `admin`
-- Password: `admin123`
-
----
-
-## 📚 Common Docker Commands Reference
-
-### Image Management
-
-```bash
-# List all images
-docker images
-
-# Remove an image
-docker rmi <image-name>
-
-# Remove all unused images
-docker image prune -a
-
-# Build an image
-docker build -t <name>:<tag> .
-
-# Tag an image
-docker tag <source-image> <target-image>
-```
-
-### Container Management
-
-```bash
-# List running containers
-docker ps
-
-# List all containers (including stopped)
-docker ps -a
-
-# Start a container
-docker start <container-name>
-
-# Stop a container
-docker stop <container-name>
-
-# Restart a container
-docker restart <container-name>
-
-# Remove a container
-docker rm <container-name>
-
-# Remove all stopped containers
-docker container prune
-
-# View container logs
-docker logs <container-name>
-docker logs -f <container-name>  # Follow logs
-
-# Execute command in running container
-docker exec -it <container-name> sh
-docker exec -it <container-name> bash
-
-# View container details
-docker inspect <container-name>
-
-# View container resource usage
+# View resource usage
 docker stats
 ```
 
-### Volume Management
+## 📜 Deployment Scripts
+
+### `initial-setup.sh`
+
+First-time server setup script. Clones repository, configures environment, and starts services.
 
 ```bash
-# List volumes
-docker volume ls
-
-# Create a volume
-docker volume create <volume-name>
-
-# Remove a volume
-docker volume rm <volume-name>
-
-# Remove all unused volumes
-docker volume prune
-
-# Inspect a volume
-docker volume inspect <volume-name>
+./initial-setup.sh
 ```
 
-### Network Management
+**What it does:**
+
+- Checks prerequisites (Docker, Git)
+- Clones repository
+- Creates `.env` file with prompts
+- Builds Docker images
+- Starts containers
+- Validates deployment
+
+### `deploy.sh`
+
+Continuous deployment script for pushing updates.
 
 ```bash
-# List networks
-docker network ls
-
-# Create a network
-docker network create <network-name>
-
-# Remove a network
-docker network rm <network-name>
-
-# Inspect a network
-docker network inspect <network-name>
-
-# Connect container to network
-docker network connect <network-name> <container-name>
+./deploy.sh
 ```
 
-### System Management
+**What it does:**
+
+- Pulls latest code from Git
+- Creates backup of current deployment
+- Rebuilds Docker images
+- Performs zero-downtime deployment
+- Runs health checks
+- Rollback on failure
+
+### `status.sh`
+
+Checks container status and application health.
 
 ```bash
-# View disk usage
-docker system df
-
-# Clean up unused resources
-docker system prune
-
-# Clean up everything (caution!)
-docker system prune -a --volumes
-
-# View Docker info
-docker info
-
-# View Docker version
-docker version
+./status.sh
 ```
 
----
+**Output:**
 
-## 🐛 Troubleshooting
+- Container status (running/stopped)
+- Health check results
+- Resource usage
+- Database connectivity
 
-### Problem: Port Already in Use
+### `restart.sh`
+
+Restarts all containers without rebuilding.
+
+```bash
+./restart.sh
+```
+
+### `stop.sh`
+
+Gracefully stops all containers.
+
+```bash
+./stop.sh
+```
+
+## 🔐 Environment Variables
+
+### Application Variables
+
+Create a `.env` file in the root directory:
+
+```env
+# Application
+PORT=3000
+NODE_ENV=production
+
+# Database
+MONGO_URI=mongodb://admin:password@mongodb:27017/dockerapp?authSource=admin
+
+# MongoDB Credentials
+MONGO_ROOT_USERNAME=admin
+MONGO_ROOT_PASSWORD=your_secure_password_here
+```
+
+### Security Notes
+
+⚠️ **Important:**
+
+- Never commit `.env` files to Git
+- Use strong passwords for production
+- Consider using Docker secrets or Kubernetes secrets for sensitive data
+- Rotate credentials regularly
+
+## 💓 Health Checks
+
+### Application Health Check
+
+**Endpoint:** `GET /health`
+
+**Response:**
+
+```json
+{
+  "status": "OK",
+  "timestamp": "2026-01-08T12:00:00.000Z",
+  "database": "Connected"
+}
+```
+
+### Container Health Checks
+
+**Node.js App:**
+
+- **Check:** `wget http://localhost:3000/health`
+- **Interval:** 30 seconds
+- **Timeout:** 10 seconds
+- **Retries:** 3
+- **Start Period:** 40 seconds
+
+**MongoDB:**
+
+- **Check:** `mongosh ping command`
+- **Interval:** 30 seconds
+- **Timeout:** 10 seconds
+- **Retries:** 5
+- **Start Period:** 60 seconds
+
+### Monitor Health Status
+
+```bash
+# Check health via Docker
+docker compose ps
+
+# Check health via API
+curl http://localhost:3000/health
+
+# View logs
+docker compose logs -f app
+```
+
+## 📊 Resource Management
+
+### Resource Limits
+
+**Application Container:**
+
+- **CPU Limit:** 1.0 core (maximum)
+- **CPU Reservation:** 0.5 cores (guaranteed)
+- **Memory Limit:** 512MB (maximum)
+- **Memory Reservation:** 256MB (guaranteed)
+
+**MongoDB Container:**
+
+- **CPU Limit:** 1.0 core (maximum)
+- **CPU Reservation:** 0.5 cores (guaranteed)
+- **Memory Limit:** 1GB (maximum)
+- **Memory Reservation:** 512MB (guaranteed)
+
+### Monitor Resource Usage
+
+```bash
+# Real-time stats
+docker stats
+
+# Container-specific stats
+docker stats nodejs-app-prod mongodb-prod
+```
+
+## 🔒 Security Features
+
+### Application Security
+
+✅ **Implemented:**
+
+- Non-root user execution
+- No development dependencies in production
+- Read-only root filesystem where possible
+- Health checks for automatic restart
+- Graceful shutdown handling
+
+## 🔄 Graceful Shutdown
+
+The application implements **complete graceful shutdown** to ensure clean exits and prevent data corruption when containers are stopped or restarted.
+
+### How It Works
+
+When a termination signal is received (e.g., `docker compose down`):
+
+1. **Signal Reception** - `dumb-init` (PID 1) forwards SIGTERM/SIGINT to the Node.js process
+2. **Stop New Connections** - HTTP server stops accepting new requests
+3. **Complete Active Requests** - Existing requests are allowed to finish processing
+4. **Close Database** - MongoDB connections are closed properly
+5. **Clean Exit** - Application exits with code 0 (success)
+
+### Benefits
+
+✅ **No Request Interruption** - Active requests complete before shutdown  
+✅ **No Data Loss** - Database operations finish and connections close cleanly  
+✅ **No Connection Leaks** - All resources (file handles, sockets) are released  
+✅ **Faster Restarts** - Proper cleanup enables quicker container restarts
+
+### Implementation Components
+
+**1. dumb-init (Docker Layer)**
+
+- Acts as PID 1 inside the container
+- Properly forwards termination signals to Node.js
+- Prevents zombie processes
+
+**2. Signal Handlers (Application Layer)**
+
+```typescript
+process.on("SIGTERM", gracefulShutdown);
+process.on("SIGINT", gracefulShutdown);
+```
+
+**3. Safety Timeout**
+
+- 30-second timeout prevents hanging shutdowns
+- Forces exit if graceful shutdown takes too long
+
+### Verify Graceful Shutdown
+
+Test the shutdown behavior:
+
+```bash
+# Start the container
+docker compose up
+
+# In another terminal, stop it and watch logs
+docker compose down
+```
+
+**Expected Output:**
+
+```
+👋 SIGTERM signal received: starting graceful shutdown
+🛑 HTTP server closed (no longer accepting connections)
+📦 MongoDB connection closed
+✅ Graceful shutdown completed
+```
+
+- Input validation on API endpoints
+
+### Network Security
+
+✅ **Implemented:**
+
+- Isolated Docker network
+- MongoDB not exposed to host (commented out in production)
+- Internal communication only
+
+### Recommendations
+
+🔐 **Additional Steps:**
+
+1. Enable TLS/SSL for MongoDB connections
+2. Use Docker secrets for credentials
+3. Implement rate limiting
+4. Add authentication/authorization (JWT)
+5. Set up a reverse proxy (Nginx) with HTTPS
+6. Regular security updates and scanning
+
+## 📝 Monitoring & Logging
+
+### Log Management
+
+**Log Configuration:**
+
+- **Driver:** json-file
+- **Max Size:** 10MB per file
+- **Max Files:** 3 (30MB total)
+
+**View Logs:**
+
+```bash
+# All containers
+docker compose logs -f
+
+# Specific container
+docker compose logs -f app
+docker compose logs -f mongodb
+
+# Last 100 lines
+docker compose logs --tail=100 app
+```
+
+### Production Monitoring
+
+**Recommended Tools:**
+
+- **Prometheus** - Metrics collection
+- **Grafana** - Visualization
+- **Loki** - Log aggregation
+- **cAdvisor** - Container metrics
+- **Node Exporter** - System metrics
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### 1. Port Already in Use
 
 **Error:** `Bind for 0.0.0.0:3000 failed: port is already allocated`
 
 **Solution:**
 
 ```bash
-# Option 1: Find and stop the process using the port
-# Windows:
-netstat -ano | findstr :3000
-taskkill /PID <PID> /F
+# Find process using port 3000
+netstat -ano | findstr :3000  # Windows
+lsof -i :3000                 # Linux/Mac
 
-# Linux/Mac:
-lsof -i :3000
-kill -9 <PID>
-
-# Option 2: Change port in docker-compose.dev.yml
-# Change "3000:3000" to "3001:3000"
+# Stop the process or change port in .env
+PORT=3001
 ```
 
-### Problem: Cannot Connect to MongoDB
+#### 2. MongoDB Connection Failed
 
 **Error:** `MongooseServerSelectionError: connect ECONNREFUSED`
 
-**Solutions:**
+**Solution:**
 
-1. Ensure MongoDB container is running:
+```bash
+# Check if MongoDB is running
+docker compose ps
 
-   ```bash
-   docker-compose -f docker-compose.dev.yml ps
-   ```
+# Check MongoDB logs
+docker compose logs mongodb
 
-2. Check MongoDB logs:
+# Restart MongoDB
+docker compose restart mongodb
+```
 
-   ```bash
-   docker-compose -f docker-compose.dev.yml logs mongodb
-   ```
+#### 3. Container Unhealthy
 
-3. Verify network connectivity:
-
-   ```bash
-   docker-compose -f docker-compose.dev.yml exec app ping mongodb
-   ```
-
-4. Restart services:
-   ```bash
-   docker-compose -f docker-compose.dev.yml restart
-   ```
-
-### Problem: Changes Not Reflected
-
-**Issue:** Code changes don't appear in the running app
-
-**Solutions:**
-
-1. For development, ensure volumes are mounted correctly
-2. Check if nodemon is running in container logs
-3. Rebuild the image:
-   ```bash
-   docker-compose -f docker-compose.dev.yml up --build
-   ```
-
-### Problem: Out of Disk Space
-
-**Error:** `no space left on device`
+**Error:** Container status shows "unhealthy"
 
 **Solution:**
 
 ```bash
-# Clean up unused Docker resources
-docker system prune -a --volumes
+# Check health logs
+docker inspect nodejs-app-prod | grep -A 10 Health
 
-# Remove specific volumes
-docker volume rm <volume-name>
+# Check application logs
+docker compose logs app
+
+# Restart with fresh build
+docker compose down
+docker compose up -d --build
 ```
 
-### Problem: Permission Denied
+#### 4. Out of Memory
 
-**Issue:** Files created by containers have wrong permissions
+**Error:** Container crashes with exit code 137
 
 **Solution:**
 
 ```bash
-# On Linux/Mac, run container with your user ID
-docker run --user $(id -u):$(id -g) ...
-
-# Or fix permissions after:
-sudo chown -R $USER:$USER .
+# Increase memory limits in docker-compose.yml
+deploy:
+  resources:
+    limits:
+      memory: 1G  # Increase from 512M
 ```
 
----
+#### 5. Build Failures
 
-## ✨ Best Practices
+**Error:** `failed to solve: process "/bin/sh -c npm ci" did not complete successfully`
 
-### 1. **Security**
+**Solution:**
 
-- ✅ Never commit `.env` files with secrets
-- ✅ Run containers as non-root users
-- ✅ Use secrets management in production
-- ✅ Enable MongoDB authentication in production
-- ✅ Keep images updated with security patches
+```bash
+# Clear Docker cache
+docker compose build --no-cache
 
-### 2. **Image Optimization**
+# Check package.json for errors
+npm install  # Test locally first
+```
 
-- ✅ Use multi-stage builds
-- ✅ Use Alpine-based images when possible
-- ✅ Leverage Docker layer caching
-- ✅ Use `.dockerignore` to exclude unnecessary files
-- ✅ Minimize the number of layers
+### Debug Mode
 
-### 3. **Development Workflow**
+Run containers in foreground with full logs:
 
-- ✅ Use Docker Compose for local development
-- ✅ Mount source code as volumes for hot-reloading
-- ✅ Use separate configs for dev and prod
-- ✅ Add health checks to services
-- ✅ Use named volumes for data persistence
+```bash
+docker compose up
+```
 
-### 4. **Production Deployment**
+### Reset Everything
 
-- ✅ Use specific image tags (not `latest`)
-- ✅ Set resource limits
-- ✅ Implement proper logging
-- ✅ Use orchestration tools (Kubernetes, Docker Swarm)
-- ✅ Set up monitoring and alerting
-- ✅ Regular backups of volumes
+Complete clean start:
 
-### 5. **Performance**
+```bash
+# Stop and remove everything
+docker compose down -v
 
-- ✅ Order Dockerfile commands from least to most frequently changing
-- ✅ Use `.dockerignore` to reduce build context
-- ✅ Combine RUN commands to reduce layers
-- ✅ Clean up in the same layer where you install
+# Remove all related images
+docker rmi nodejs-app-prod:latest mongo:7
 
----
+# Remove network
+docker network rm nodejs-mongodb-network-prod
 
-## 📖 Learning Resources
-
-### Official Documentation
-
-- [Docker Documentation](https://docs.docker.com/)
-- [Docker Compose Documentation](https://docs.docker.com/compose/)
-- [Dockerfile Best Practices](https://docs.docker.com/develop/develop-images/dockerfile_best-practices/)
-
-### Useful Commands Cheat Sheets
-
-- [Docker Cheat Sheet](https://docs.docker.com/get-started/docker_cheatsheet.pdf)
-- [Docker Compose Cheat Sheet](https://devhints.io/docker-compose)
-
----
-
-## 🎓 Next Steps
-
-After mastering this project, explore:
-
-1. **Container Orchestration**
-
-   - Learn Kubernetes basics
-   - Try Docker Swarm
-
-2. **CI/CD Integration**
-
-   - Automate builds with GitHub Actions
-   - Deploy to cloud platforms
-
-3. **Advanced Topics**
-
-   - Docker Secrets
-   - Multi-host networking
-   - Container security scanning
-
-4. **Monitoring & Logging**
-   - Set up Prometheus + Grafana
-   - Centralized logging with ELK stack
-
----
-
-## 📝 License
-
-This project is open source and available for learning purposes.
-
----
+# Start fresh
+docker compose up -d --build
+```
 
 ## 🤝 Contributing
 
-Feel free to fork this project and customize it for your learning needs!
+Contributions are welcome! Please follow these steps:
+
+1. **Fork the repository**
+2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
+3. **Commit your changes** (`git commit -m 'Add amazing feature'`)
+4. **Push to the branch** (`git push origin feature/amazing-feature`)
+5. **Open a Pull Request**
+
+### Development Guidelines
+
+- Follow TypeScript best practices
+- Maintain test coverage
+- Update documentation
+- Follow conventional commits
+- Ensure all tests pass
+
+## 📄 License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
 
 ---
 
-**Happy Learning! 🐳**
+## 📚 Additional Resources
+
+- [Docker Documentation](https://docs.docker.com/)
+- [Docker Compose Documentation](https://docs.docker.com/compose/)
+- [Node.js Best Practices](https://github.com/goldbergyoni/nodebestpractices)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
+- [MongoDB Documentation](https://docs.mongodb.com/)
+- [Express.js Guide](https://expressjs.com/en/guide/routing.html)
+
+## 🙋 Support
+
+For issues and questions:
+
+- Create an issue on GitHub
+- Check existing issues and discussions
+- Review the troubleshooting section
+
+---
+
+**Built with ❤️ using Docker, Node.js, and TypeScript**
